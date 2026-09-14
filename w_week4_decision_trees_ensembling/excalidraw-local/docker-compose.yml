@@ -1,0 +1,44 @@
+services:
+  excalidraw:
+    image: excalidraw/excalidraw:latest
+    container_name: excalidraw
+    restart: unless-stopped
+    ports:
+      - "5000:80"
+    environment:
+      NODE_ENV: production
+      VITE_APP_WS_SERVER_URL: http://localhost:3002
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Patching collab URL to $$VITE_APP_WS_SERVER_URL"
+        find /usr/share/nginx/html/assets -type f -name "*.js" \
+          -exec sed -i "s|https://oss-collab\\.excalidraw\\.com|$$VITE_APP_WS_SERVER_URL|g" {} +
+        echo "Starting nginx..."
+        nginx -g "daemon off;"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      - excalidraw-room
+
+  excalidraw-room:
+    image: excalidraw/excalidraw-room:latest
+    container_name: excalidraw-room
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    environment:
+      NODE_ENV: production
+      PORT: "80"
+      CORS_ORIGIN: "*"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
